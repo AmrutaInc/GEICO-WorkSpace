@@ -28,6 +28,8 @@ app.layout = html.Div([
             'height': '100px'
             }), href='http://amrutainc.com/'),
 
+            html.H2('GEICO'),
+
     dcc.Upload(
         id='upload-data',
         children=html.Div([
