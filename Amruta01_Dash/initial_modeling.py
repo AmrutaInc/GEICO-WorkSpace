@@ -20,12 +20,13 @@ from sklearn.metrics import recall_score
 from sklearn.metrics import f1_score
 from sklearn.metrics import roc_auc_score
 from sklearn.model_selection import GridSearchCV
+import sys
 
 
 predictions = dict()
 # Read in data
 dd_path = r'datadictionary_fraud_freetrial.csv'
-data_path = r'abt_clean.csv'
+data_path = sys.argv[1]
 dd = pd.read_csv(dd_path)
 data = pd.read_csv(data_path)
 all_numeric_types = ['int16', 'int32', 'int64', 'float16', 'float32', 'float64']
@@ -101,14 +102,15 @@ for target in targets:
 		   'random_state':[random_state]}
 
 	# Build and score the models.
-	
+
 	models = zip([m1, m2, m3], [pg1, pg2, pg3], ['SVM', 'RF', 'ADABOOST'])
 	for m, params, name in models:
 		tuned_mod = GridSearchCV(estimator=m, param_grid=params, cv=5, scoring='roc_auc')
 		tuned_mod.fit(x_train, y_train)
 		preds = tuned_mod.predict(x_test)
 		if name=="RF":
-			predictions[target] = preds
+			preds_save = tuned_mod.predict(pd.concat([x_train,x_test]))
+			predictions[target] = preds_save
 		print(predictions)
 		print('  RESULTS FOR MODEL ' + name + ':')
 		print('    Precison: ' + str(precision_score(y_test, preds)))

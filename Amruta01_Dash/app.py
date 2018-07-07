@@ -1,20 +1,17 @@
 import base64
 import io
-
+import subprocess
 import flask
 import dash
-# from dash import Dash
 from dash.dependencies import Input, Output
 import dash_core_components as dcc
 import dash_html_components as html
 import dash_table_experiments as dt
 import numpy as np
 import pandas as pd
-# import xlwt
 import os
 
 app = dash.Dash()
-app.config['UPLOAD_FOLDER'] = "static"
 server = app.server
 app.title = 'AmrutaInc'
 app.scripts.config.serve_locally = True
@@ -22,12 +19,11 @@ app.scripts.config.serve_locally = True
 app.layout = html.Div([
 
         html.A(html.Img(src="/static/amruta_logo.jpg", alt='Amruta Inc',
-                        style={
+        style={
 
-                                'width': '30%',
-                                'height': '100px'
-                                }
-                        ), href='http://amrutainc.com/'),
+            'width': '30%',
+            'height': '100px'
+            }), href='http://amrutainc.com/'),
 
             html.H2('GEICO'),
 
@@ -51,10 +47,11 @@ app.layout = html.Div([
         },
         # Allow multiple files to be uploaded
         multiple=True
-                ),
+    ),
+
 
     html.A(html.Button('Download',
-        style={
+            style={
 
                 'width': '30%',
                 'height': '62px',
@@ -67,7 +64,7 @@ app.layout = html.Div([
                 'float': 'left'
                 },),
                 id='download-link',
-                download="Fraud_Data.csv",
+                download="datadictionary_fraud_freetrial.csv",
                 href="",
                 target="_blank",
                 n_clicks=0
@@ -88,26 +85,23 @@ def parse_contents(contents, filename, date):
             # Assume that the user uploaded a CSV file
             df = pd.read_csv(
                 io.StringIO(decoded.decode('utf-8')))
-        elif 'xls' in filename:
-            # Assume that the user uploaded an excel file
-            df = pd.read_excel(io.BytesIO(decoded))
-            df['Score'] = np.random.randint(1, 1000, size=len(df))
-
-    except Exception as e:
-        print(e)
-        return html.Div([
-            'There was an error processing this file.'
-        ])
-
-    return html.Div([
-        html.H5(filename),
-        # html.H6(datetime.datetime.fromtimestamp(date)),
-
-        dt.DataTable(rows=df.to_dict(orient='records'), row_selectable=True,),
+            df.to_csv(filename)
+            p = subprocess.Popen("python initial_modeling.py "+filename,shell=False,cwd=os.getcwd())
+            p.wait()
+            print("script run")
+            r = pd.DataFrame(np.random.uniform(low=0, high=1, size=len(df)), columns=["Uniformed Score"])
+            temp = pd.read_csv("predictions.csv")
+            # To Display all the columns
+            # temp = pd.concat([r, temp, df],axis=1)
+            # To display only target and score columns
+            temp = pd.concat([r,temp],axis=1)
+            print("concat")
+            return html.Div([html.H5(filename),
+            dt.DataTable(rows=temp.to_dict(orient='records'),row_selectable=True,),
             html.P('Do you agree?',
-                    style={
-                            'textAlign': 'center',
-                        }),
+            style={
+                'textAlign': 'center',
+            }),
             dcc.RadioItems(
             options=[
                 {'label': 'Yes', 'value': 'Yes'},
@@ -116,16 +110,51 @@ def parse_contents(contents, filename, date):
             value='No',
             style={
                 'textAlign': 'center',
-                    }
-        )
+            }
+            )
 
-        # For debugging, display the raw contents provided by the web browser
-        #html.Div('Raw Content'),
-        #html.Pre(contents[0:200] + '...', style={
-            #'whiteSpace': 'pre-wrap',
-            #'wordBreak': 'break-all'
-        #})
     ])
+        elif 'xls' in filename:
+            # Assume that the user uploaded an excel file
+            print("in elif")
+            df = pd.read_excel(io.BytesIO(decoded))
+            df.to_csv(filename)
+            r = pd.DataFrame(np.random.uniform(low=0, high=1, size=len(df)), columns=["Uniformed Score"])
+
+            p = subprocess.Popen("python initial_modeling.py "+filename,shell=False,cwd=os.getcwd())
+            p.wait()
+
+            print("script run")
+            temp = pd.read_csv("predictions.csv")
+            # To Display all the columns
+            # temp = pd.concat([r, temp, df],axis=1)
+            # To display only target and score columns
+            temp = pd.concat([r,temp],axis=1)
+
+            return html.Div([html.H5(filename),
+            dt.DataTable(rows=temp.to_dict(orient='records'),row_selectable=True,),
+            html.P('Do you agree?',
+            style={
+                'textAlign': 'center',
+            }),
+            dcc.RadioItems(
+            options=[
+                {'label': 'Yes', 'value': 'Yes'},
+                {'label': ' No ', 'value': 'No'},
+            ],
+            value='No',
+            style={
+                'textAlign': 'center',
+            }
+            )
+
+    ])
+
+    except Exception as e:
+        print(e)
+        return html.Div([
+            'There was an error processing this file.'
+        ])
 
 @app.callback(Output('output-data-upload', 'children'),
               [Input('upload-data', 'contents'),
@@ -160,7 +189,7 @@ def generate_report_url(n_clicks):
 
 def generate_report_url():
 
-    return flask.send_file('Fraud_Data.csv', attachment_filename='Fraud_Data.csv', as_attachment=True)
+    return flask.send_file('datadictionary_fraud_freetrial.csv', attachment_filename = 'datadictionary_fraud_freetrial.csv', as_attachment = True)
 
 
 if __name__ == '__main__':
